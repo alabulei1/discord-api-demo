@@ -17,3 +17,5 @@ log = "0.4"
 openai-flows = "0.8.5"
 serde_json = "1"
 tokio_wasi = { version = "1.25.0", features = ["rt", "macros"] }
+serde = { version = "1", features = ["derive"] }
+http_req_wasi = { version = "0.10", features = ["wasmedge_ssl"] }
