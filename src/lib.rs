@@ -16,6 +16,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::env;
 use std::io::Write;
+use tokio::time::{sleep, Duration};
+
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() -> anyhow::Result<()> {
@@ -23,10 +25,13 @@ pub async fn run() -> anyhow::Result<()> {
     let discord_token = env::var("discord_token").unwrap();
     let bot = ProvidedBot::new(discord_token.clone());
 
-    // Register slash commands
-    register_commands(&bot, &discord_token).await?;
 
     bot.listen(|msg| handler(&bot, msg)).await;
+
+    sleep(Duration::from_secs(5)).await;
+       // Register slash commands
+    register_commands(&bot, &discord_token).await?;
+ 
     Ok(())
 }
 
