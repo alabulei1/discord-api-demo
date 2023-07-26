@@ -7,19 +7,95 @@ use dotenv::dotenv;
 use flowsnet_platform_sdk::logger;
 use http_req::{
     request::{Method, Request},
+    response::{Headers, Response},
     uri::Uri,
 };
-use serde::Deserialize;
-use std::env;
+use unicase::Ascii;
 
+use serde::Deserialize;
+use serde_json::Value;
+use std::env;
+use std::io::Write;
 #[no_mangle]
 #[tokio::main(flavor = "current_thread")]
 pub async fn run() -> anyhow::Result<()> {
     dotenv().ok();
     let discord_token = env::var("discord_token").unwrap();
-    let bot = ProvidedBot::new(discord_token);
+    let bot = ProvidedBot::new(discord_token.clone());
+
+    // Register slash commands
+    register_commands(&discord_token).await?;
+
     bot.listen(|msg| handler(&bot, msg)).await;
     Ok(())
+}
+
+// Register slash commands
+async fn register_commands(discord_token: &str) -> anyhow::Result<()> {
+    // Define the bot_id and guild_id for the command to be registered to
+    let bot_id = env::var("bot_id").unwrap_or("1124137839601406013".to_string());
+    let guild_id = env::var("discord_guild_id").unwrap_or("1128056245765558364".to_string());
+
+    // Define the Discord API endpoint for registering commands
+    let uri = format!(
+        "https://discord.com/api/v8/applications/{}/guilds/{}/commands",
+        bot_id, guild_id
+    );
+
+    // Define the slash command
+    let command = serde_json::json!({
+        "name": "weather",
+        "description": "Get the weather for a city",
+        "options": [
+            {
+                "name": "city",
+                "description": "The city to get the weather for",
+                "type": 3,
+                "required": true
+            }
+        ]
+    })
+    .to_string();
+
+    let mut headers = Headers::new();
+    headers.insert(
+        &Ascii::new("Authorization"), 
+        &format!("Bot {}", discord_token),
+    );
+    headers.insert(
+        &Ascii::new("Content-Type"), 
+        &"application/json".to_string(),
+    );
+    headers.insert(
+        &Ascii::new("Content-Length"), 
+        &command.as_bytes().len().to_string(),
+    );
+    let mut writer = Vec::new();
+    post(&uri, headers, command.as_bytes(), &mut writer)?;
+
+    let response = Response::from_head(&writer)?;
+    if response.status_code().is_success() {
+        println!("Successfully registered command");
+    } else {
+        println!("Failed to register command: {}", response.status_code());
+    }
+
+    Ok(())
+}
+
+pub fn post<T: AsRef<str>, U: Write>(
+    uri: T,
+    headers: Headers,
+    body: &[u8],
+    writer: &mut U,
+) -> Result<Response, http_req::error::Error> {
+    let uri = Uri::try_from(uri.as_ref())?;
+
+    Request::new(&uri)
+        .method(Method::POST)
+        .headers(headers)
+        .body(body)
+        .send(writer)
 }
 
 async fn handler(bot: &ProvidedBot, msg: Message) {
@@ -33,42 +109,58 @@ async fn handler(bot: &ProvidedBot, msg: Message) {
     }
 
     match msg.interaction {
-        Some(interaction) => match &interaction.kind {
-            InteractionType::ApplicationCommand => {
-                match interaction.name.as_str() {
-                    "weather" => {
-                        let city = msg.content.trim_start_matches("/weather").trim();
-                        log::info!("city: {}", city);
-                        let resp = match get_weather(&city) {
-                            Some(w) => format!(
-                                r#"Today: {},
+        Some(interaction) => {
+            match &interaction.kind {
+                InteractionType::ApplicationCommand => {
+                    match interaction.name.as_str() {
+                        "weather" => {
+                            // let city_option = interaction
+                            //     .data
+                            //     .options
+                            //     .into_iter()
+                            //     .find(|option| option.name == "city");
+
+                            // let city = match city_option.and_then(|option| option.value) {
+                            //     Some(Value::String(city)) => city,
+                            //     _ => {
+                            //         log::error!("Invalid or missing 'city' option");
+                            //         return;
+                            //     }
+                            // };
+
+                            let city = msg.content.trim_start_matches("/weather").trim();
+                            log::info!("city: {}", city);
+                            let resp = match get_weather(&city) {
+                                Some(w) => format!(
+                                    r#"Today: {},
         Low temperature: {} °C,
         High temperature: {} °C,
         Wind Speed: {} km/h"#,
-                                w.weather
-                                    .first()
-                                    .unwrap_or(&Weather {
-                                        main: "Unknown".to_string()
-                                    })
-                                    .main,
-                                w.main.temp_min as i32,
-                                w.main.temp_max as i32,
-                                w.wind.speed as i32
-                            ),
-                            None => String::from("No city or incorrect spelling"),
-                        };
-                        _ = discord
-                            .send_message(
-                                channel_id.into(),
-                                &serde_json::json!({ "content": &resp }),
-                            )
-                            .await;
-                    }
-                    _ => {}
-                };
+                                    w.weather
+                                        .first()
+                                        .unwrap_or(&Weather {
+                                            main: "Unknown".to_string()
+                                        })
+                                        .main,
+                                    w.main.temp_min as i32,
+                                    w.main.temp_max as i32,
+                                    w.wind.speed as i32
+                                ),
+                                None => String::from("No city or incorrect spelling"),
+                            };
+                            _ = discord
+                                .send_message(
+                                    channel_id.into(),
+                                    &serde_json::json!({ "content": &resp }),
+                                )
+                                .await;
+                        }
+                        _ => {}
+                    };
+                }
+                _ => {}
             }
-            _ => {}
-        },
+        }
         None => {}
     }
 }
@@ -123,89 +215,3 @@ fn get_weather(city: &str) -> Option<ApiResult> {
     };
     None
 }
-// if let Some(interaction) = msg.interaction {
-//     if &interaction.kind == &InteractionType::Ping {
-//         let pong = serde_json::json!({
-//             "type": 1
-//         });
-
-//         // let pong_str = serde_json::to_string(&pong).unwrap_or_default();
-
-//         // send_response(
-//         //     200,
-//         //     vec![(
-//         //         String::from("content-type"),
-//         //         String::from("application/json"),
-//         //     )],
-//         //     pong_str.as_bytes().to_vec(),
-//         // );
-
-//         let res = discord
-//             .send_message(
-//                 channel_id.into(),
-//                 &serde_json::json!({
-//                     "content": pong,
-//                 }),
-//             )
-//             .await;
-//     }
-
-//     let name = interaction.name;
-//     // let pong = serde_json::json!({
-//     //     "type": 1
-//     // });
-
-//     // let pong_str = serde_json::to_string(&pong).unwrap_or_default();
-
-//     // send_response(
-//     //     200,
-//     //     vec![(
-//     //         String::from("content-type"),
-//     //         String::from("application/json"),
-//     //     )],
-//     //     pong_str.as_bytes().to_vec(),
-//     // );
-
-//     let res = discord
-//         .send_message(
-//             channel_id.into(),
-//             &serde_json::json!({
-//                 "content": name,
-//             }),
-//         )
-//         .await;
-// }
-
-// let bot_name = std::env::var("BOT_NAME").unwrap_or(String::from("Chat assistant"));
-
-// _ = discord
-//     .edit_profile(
-//         serde_json::json!({ "username": bot_name })
-//             .as_object()
-//             .unwrap(),
-//     )
-//     .await;
-
-// let co = ChatOptions {
-//     model: ChatModel::GPT35Turbo,
-//     restart: false,
-//     system_prompt: Some("You are a helpful assistant answering questions on Discord. If someone greets you without asking a question, you should simply respond \"Hello, I am your assistant on Discord, built by the Second State team. I am ready for your instructions now!\""),
-//     max_tokens: Some(150),
-//     ..Default::default()
-// };
-
-// let of = OpenAIFlows::new();
-
-// if let Ok(c) = of
-//     .chat_completion(&channel_id.to_string(), &content, &co)
-//     .await
-// {
-//     _ = discord
-//         .send_message(
-//             channel_id.into(),
-//             &serde_json::json!({
-//                 "content": c.choice,
-//             }),
-//         )
-//         .await;
-// }
