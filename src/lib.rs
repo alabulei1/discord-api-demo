@@ -24,18 +24,19 @@ pub async fn run() -> anyhow::Result<()> {
     let bot = ProvidedBot::new(discord_token.clone());
 
     // Register slash commands
-    register_commands(&discord_token).await?;
+    register_commands(&bot, &discord_token).await?;
 
     bot.listen(|msg| handler(&bot, msg)).await;
     Ok(())
 }
 
 // Register slash commands
-async fn register_commands(discord_token: &str) -> anyhow::Result<()> {
+async fn register_commands(bot: &ProvidedBot, discord_token: &str) -> anyhow::Result<()> {
     // Define the bot_id and guild_id for the command to be registered to
     let bot_id = env::var("bot_id").unwrap_or("1124137839601406013".to_string());
     let guild_id = env::var("discord_guild_id").unwrap_or("1128056245765558364".to_string());
-
+    let channel_id = env::var("discord_channel_id").unwrap_or("1128056246570860617".to_string());
+    let discord = bot.get_client();
     // Define the Discord API endpoint for registering commands
     let uri = format!(
         "https://discord.com/api/v8/applications/{}/guilds/{}/commands",
@@ -85,9 +86,22 @@ async fn register_commands(discord_token: &str) -> anyhow::Result<()> {
 
     let response = Response::from_head(&writer)?;
     if response.status_code().is_success() {
-        println!("Successfully registered command");
+        _ = discord
+            .send_message(
+                channel_id.parse::<u64>().unwrap(),
+                &serde_json::json!({ "content": "Successfully registered command" }),
+            )
+            .await;
     } else {
-        println!("Failed to register command: {}", response.status_code());
+        _ = discord
+            .send_message(
+                channel_id.parse::<u64>().unwrap(),
+                &serde_json::json!({
+                    "content": &format!("Failed to register command: {}", response.status_code())
+                }),
+            )
+            .await;
+        &format!("Failed to register command: {}", response.status_code());
     }
 
     Ok(())
