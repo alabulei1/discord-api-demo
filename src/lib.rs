@@ -43,13 +43,26 @@ async fn register_commands(discord_token: &str) -> anyhow::Result<()> {
     );
 
     // Define the slash command
+    // let command = serde_json::json!({
+    //     "name": "weather",
+    //     "description": "Get the weather for a city",
+    //     "options": [
+    //         {
+    //             "name": "city",
+    //             "description": "The city to get the weather for",
+    //             "type": 3,
+    //             "required": true
+    //         }
+    //     ]
+    // })
+    // .to_string();
     let command = serde_json::json!({
-        "name": "weather",
-        "description": "Get the weather for a city",
+        "name": "fake",
+        "description": "This is a fake command",
         "options": [
             {
-                "name": "city",
-                "description": "The city to get the weather for",
+                "name": "nothing",
+                "description": "Nothing to go for",
                 "type": 3,
                 "required": true
             }
@@ -59,15 +72,12 @@ async fn register_commands(discord_token: &str) -> anyhow::Result<()> {
 
     let mut headers = Headers::new();
     headers.insert(
-        &Ascii::new("Authorization"), 
+        &Ascii::new("Authorization"),
         &format!("Bot {}", discord_token),
     );
+    headers.insert(&Ascii::new("Content-Type"), &"application/json".to_string());
     headers.insert(
-        &Ascii::new("Content-Type"), 
-        &"application/json".to_string(),
-    );
-    headers.insert(
-        &Ascii::new("Content-Length"), 
+        &Ascii::new("Content-Length"),
         &command.as_bytes().len().to_string(),
     );
     let mut writer = Vec::new();
