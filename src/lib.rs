@@ -25,12 +25,13 @@ pub async fn run() -> anyhow::Result<()> {
     dotenv().ok();
     let discord_token = env::var("discord_token").unwrap();
     let bot = ProvidedBot::new(discord_token.clone());
+    let commands_registered = env::var("COMMANDS_REGISTERED").unwrap_or("false".to_string());
 
+    if commands_registered == "false" {
+        register_commands(&bot, &discord_token).await?;
+        env::set_var("COMMANDS_REGISTERED", "true");
+    }
     bot.listen(|msg| handler(&bot, msg)).await;
-
-    sleep(Duration::from_secs(5)).await;
-    // Register slash commands
-    register_commands(&bot, &discord_token).await?;
 
     Ok(())
 }
