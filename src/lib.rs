@@ -121,41 +121,61 @@ async fn handler(bot: &ProvidedBot, msg: Message) {
                                 &serde_json::json!({ "content": "Please provide a valid city" }),
                             )
                             .await;
-                            //                 match city_option {
-                            //                 CommandDataOptionValue::String(city) => {
-                            //                     log::info!("city: {}", city);
-                            //                     let resp = match get_weather(&city) {
-                            //                         Some(w) => format!(
-                            //                             r#"Today: {},
-                            // Low temperature: {} °C,
-                            // High temperature: {} °C,
-                            // Wind Speed: {} km/h"#,
-                            //                             w.weather
-                            //                                 .first()
-                            //                                 .unwrap_or(&Weather {
-                            //                                     main: "Unknown".to_string()
-                            //                                 })
-                            //                                 .main,
-                            //                             w.main.temp_min as i32,
-                            //                             w.main.temp_max as i32,
-                            //                             w.wind.speed as i32
-                            //                         ),
-                            //                         None => String::from("No city or incorrect spelling"),
-                            //                     };
-                            //                     _ = discord
-                            //                         .send_message(
-                            //                             channel_id.into(),
-                            //                             &serde_json::json!({ "content": &resp }),
-                            //                         )
-                            //                         .await;
-                            //                 },
-                            //                 _ =>     _=    discord
-                            //                 .send_message(
-                            //                     channel_id.into(),
-                            //                     &serde_json::json!({ "content": "Please provide a valid city" }),
-                            //                 )
-                            //                 .await,
-                            //             }
+
+        //                     let resp_inner = match get_weather(&city) {
+        //                         Some(w) => format!(
+        //                             r#"Today: {},
+        // Low temperature: {} °C,
+        // High temperature: {} °C,
+        // Wind Speed: {} km/h"#,
+        //                             w.weather
+        //                                 .first()
+        //                                 .unwrap_or(&Weather {
+        //                                     main: "Unknown".to_string()
+        //                                 })
+        //                                 .main,
+        //                             w.main.temp_min as i32,
+        //                             w.main.temp_max as i32,
+        //                             w.wind.speed as i32
+        //                         ),
+        //                         None => String::from("No city or incorrect spelling"),
+        //                     };
+
+        //                     // Create a response with the weather data.
+        //                     let response = serde_json::json!({
+        //                         "type": 4,
+        //                         "data": {
+        //                             "content": resp_inner,
+        //                         }
+        //                     });
+
+        //                     // Respond to the interaction with the weather data.
+        //                     discord
+        //                         .create_interaction_response(
+        //                             interaction.id,
+        //                             &interaction.token,
+        //                             &response,
+        //                         )
+        //                         .await?;
+
+                            match city_option {
+                                            CommandDataOptionValue::String(city) => {
+                                                log::info!("city: {}", city);
+
+                                                _ = discord
+                                                    .send_message(
+                                                        channel_id.into(),
+                                                        &serde_json::json!({ "content": &resp }),
+                                                    )
+                                                    .await;
+                                            },
+                                            _ =>     _=    discord
+                                            .send_message(
+                                                channel_id.into(),
+                                                &serde_json::json!({ "content": "Please provide a valid city" }),
+                                            )
+                                            .await,
+                                        }
 
                             // let city = msg.content.trim_start_matches("/weather").trim();
                         }
