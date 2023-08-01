@@ -48,7 +48,7 @@ async fn register_commands(discord_token: &str) {
         "options": [
             {
                 "name": "city",
-                "description": "The city to get the weather for",
+                "description": "The city to lookup",
                 "type": 3,
                 "required": true
             }
