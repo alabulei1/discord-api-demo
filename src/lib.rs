@@ -85,18 +85,17 @@ async fn handler(ac: ApplicationCommandInteraction) {
         .await;
     // tokio::time::sleep(Duration::from_secs(3)).await;
     client.set_application_id(ac.application_id.into());
+    let options = &ac.data.options;
+
     match ac.data.name.as_str() {
         "weather" => {
-            let options = ac
-                .data
-                .options
+            let city = match options
                 .get(0)
                 .expect("Expected city option")
                 .resolved
                 .as_ref()
-                .expect("Expected city object");
-
-            let city = match options {
+                .expect("Expected city object")
+            {
                 CommandDataOptionValue::String(s) => s,
                 _ => panic!("Expected string for city"),
             };
@@ -132,62 +131,7 @@ async fn handler(ac: ApplicationCommandInteraction) {
     }
 }
 
-/* async fn handle<B: Bot>(bot: &B, em: EventModel) {
-    match em {
-        EventModel::ApplicationCommand(ac) => {
-            let client = bot.get_client();
-            let channel_id = ac.channel_id.as_u64();
-            match ac.data.name.as_str() {
-                "weather" => {
-                    let options = ac
-                    .data
-                    .options
-                    .get(0)
-                    .expect("Expected city option")
-                    .resolved
-                    .as_ref()
-                    .expect("Expected city object");
 
-                let city = match options {
-                    CommandDataOptionValue::String(s) => s,
-                    _ => panic!("Expected string for city"),
-                };
-
-                let resp_inner = match get_weather(&city) {
-                    Some(w) => format!(
-                        r#"Today: {},
-                        Low temperature: {} °C,
-                        High temperature: {} °C,
-                        Wind Speed: {} km/h"#,
-                        w.weather
-                        .first()
-                        .unwrap_or(&Weather {
-                            main: "Unknown".to_string()
-                        })
-                        .main,
-                        w.main.temp_min as i32,
-                        w.main.temp_max as i32,
-                        w.wind.speed as i32
-                    ),
-                    None => String::from("No city or incorrect spelling"),
-                };
-                let resp = serde_json::json!(
-                    {
-                        "content": resp_inner
-                    }
-                );
-                _ = client.send_message(*channel_id, &resp).await;
-            }
-            _ => {}
-        }
-    }
-    EventModel::Message(msg) => {
-        let client = bot.get_client();
-        let channel_id = msg.channel_id;
-        let content = msg.content;
-    }
-}
-} */
 
 #[derive(Deserialize, Debug)]
 struct ApiResult {
