@@ -25,9 +25,8 @@ use std::env;
 pub async fn on_deploy() {
     dotenv().ok();
     logger::init();
-    let token = env::var("DISCORD_TOKEN").unwrap();
-    let bot = ProvidedBot::new(token);
     let discord_token = env::var("discord_token").unwrap();
+    let bot = ProvidedBot::new(&discord_token);
     let commands_registered = env::var("COMMANDS_REGISTERED").unwrap_or("false".to_string());
 
     match commands_registered.as_str() {
@@ -37,22 +36,20 @@ pub async fn on_deploy() {
         }
         _ => {}
     }
-    // bot.listen(|em| handle(&bot, em)).await;
 
     bot.listen_to_messages().await;
+
     let channel_id = env::var("discord_channel_id").unwrap_or("channel_id not found".to_string());
-    let channel_id = channel_id.parse::<u64>().unwrap(); // Your channel id
+    let channel_id = channel_id.parse::<u64>().unwrap();
     bot.listen_to_application_commands_from_channel(channel_id)
         .await;
 }
 
 #[message_handler]
 async fn handle(msg: Message) {
-    let token = std::env::var("DISCORD_TOKEN").unwrap();
-    let bot = ProvidedBot::new(token);
+    let discord_token = std::env::var("discord_token").unwrap();
+    let bot = ProvidedBot::new(&discord_token);
     let client = bot.get_client();
-    let channel_id = msg.channel_id;
-    let content = msg.content;
 
     if msg.author.bot {
         return;
@@ -60,9 +57,9 @@ async fn handle(msg: Message) {
 
     _ = client
         .send_message(
-            channel_id.into(),
+            msg.channel_id.into(),
             &serde_json::json!({
-                "content": content,
+                "content": msg.content,
             }),
         )
         .await;
@@ -70,9 +67,10 @@ async fn handle(msg: Message) {
 
 #[application_command_handler]
 async fn handler(ac: ApplicationCommandInteraction) {
-    let token = std::env::var("DISCORD_TOKEN").unwrap();
-    let bot = ProvidedBot::new(token);
+    let discord_token = env::var("discord_token").unwrap();
+    let bot = ProvidedBot::new(discord_token);
     let client = bot.get_client();
+    client.set_application_id(ac.application_id.into());
 
     _ = client
         .create_interaction_response(
@@ -84,7 +82,6 @@ async fn handler(ac: ApplicationCommandInteraction) {
         )
         .await;
     // tokio::time::sleep(Duration::from_secs(3)).await;
-    client.set_application_id(ac.application_id.into());
     let options = &ac.data.options;
 
     match ac.data.name.as_str() {
@@ -130,8 +127,6 @@ async fn handler(ac: ApplicationCommandInteraction) {
         _ => {}
     }
 }
-
-
 
 #[derive(Deserialize, Debug)]
 struct ApiResult {
